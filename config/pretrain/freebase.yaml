@@ -1,0 +1,218 @@
+# lightning.pytorch==2.5.1
+seed_everything: 42
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices:
+  - 0
+  num_nodes: 1
+  precision: null
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: logs/pretrain
+      name: freebase
+      version: null
+      prefix: ''
+      flush_logs_every_n_steps: 100
+  callbacks:
+  - class_path: model.callback.MomentumUpdateCallback
+  - class_path: model.callback.SaveOnlineEncoderCheckpointCallback
+  fast_dev_run: false
+  max_epochs: 1000
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 500
+  num_sanity_val_steps: null
+  log_every_n_steps: null
+  enable_checkpointing: false
+  enable_progress_bar: false
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: null
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+  model_registry: null
+model:
+  class_path: model.algorithm.HGCMAE
+  init_args:
+    mask:
+      class_path: model.transform.FeatureMask
+      init_args:
+        start: 0.5
+        step: 0.005
+        end: 0.8
+        mask_dim:
+          movie: 3492
+          actor: 33401
+          director: 2502
+          producer: 4459
+    backbone:
+      online:
+        class_path: model.backbone.Encoder
+        init_args:
+          rgnn:
+            class_path: model.backbone.rgnn.RGCN
+            init_args:
+              etypes:
+              - movie-actor
+              - movie-director
+              - movie-producer
+              - actor-movie
+              - director-movie
+              - producer-movie
+              ntypes:
+              - movie
+              - actor
+              - director
+              - producer
+              in_channels: 512
+              hid_channels: 512
+              num_layers: 2
+              dropout: 0.0
+              use_norm: true
+          project:
+            class_path: model.backbone.Project
+            init_args:
+              in_channels:
+                movie: 3492
+                actor: 33401
+                director: 2502
+                producer: 4459
+              out_channel: 512
+          checkpoint_path: null
+      target:
+        class_path: model.backbone.Encoder
+        init_args:
+          rgnn:
+            class_path: model.backbone.rgnn.RGCN
+            init_args:
+              etypes:
+              - movie-actor
+              - movie-director
+              - movie-producer
+              - actor-movie
+              - director-movie
+              - producer-movie
+              ntypes:
+              - movie
+              - actor
+              - director
+              - producer
+              in_channels: 512
+              hid_channels: 512
+              num_layers: 2
+              dropout: 0.0
+              use_norm: true
+          project:
+            class_path: model.backbone.Project
+            init_args:
+              in_channels:
+                movie: 3492
+                actor: 33401
+                director: 2502
+                producer: 4459
+              out_channel: 512
+          checkpoint_path: null
+    neck:
+      decoder:
+        class_path: model.backbone.Decoder
+        init_args:
+          rgnn:
+            class_path: model.backbone.rgnn.RGCN
+            init_args:
+              etypes:
+              - movie-actor
+              - movie-director
+              - movie-producer
+              - actor-movie
+              - director-movie
+              - producer-movie
+              ntypes:
+              - movie
+              - actor
+              - director
+              - producer
+              in_channels: 512
+              hid_channels: 512
+              num_layers: 2
+              dropout: 0.0
+              use_norm: true
+          rev_project:
+            class_path: model.backbone.ReverseProject
+            init_args:
+              in_channels: 512
+              out_channels:
+                movie: 3492
+                actor: 33401
+                director: 2502
+                producer: 4459
+      project:
+        class_path: model.neck.MLP
+        init_args:
+          in_channels: 512
+          hid_channels: 512
+          out_channels: 512
+          bias: true
+      target_project:
+        class_path: model.neck.MLP
+        init_args:
+          in_channels: 512
+          hid_channels: 512
+          out_channels: 512
+          bias: true
+    head:
+      class_path: model.head.HGCMAEPretrainHead
+      init_args:
+        ct_loss:
+          class_path: model.loss.InfoNceLoss
+          init_args:
+            temperature: 0.8
+        rc_loss:
+          class_path: model.loss.CosSimLoss
+          init_args:
+            alpha: 1
+        ct_weight: 0.2
+        rc_weight: 0.7
+    base_momentum: 0.997
+    non_target_weight: 0.6
+data:
+  class_path: dataset.PretrainDataModule
+  init_args:
+    data_class: dataset.FreebaseDataset
+    root: data
+    transform: null
+    batch_size: 1
+    num: 10
+optimizer:
+  lr: 0.001
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  weight_decay: 0.0
+  amsgrad: false
+  maximize: false
+  foreach: null
+  capturable: false
+  differentiable: false
+  fused: null
+lr_scheduler: null

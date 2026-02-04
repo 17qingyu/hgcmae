@@ -1,0 +1,60 @@
+seed_everything: 63
+trainer:
+  max_epochs: 200
+  enable_progress_bar: false
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: "logs/train"         # 日志存放的根目录
+      name: "aminer"  # 子文件夹名称
+  log_every_n_steps: 1
+  enable_checkpointing: false
+  accelerator: gpu
+  devices: [0]
+model:
+  class_path: model.algorithm.Classification
+  init_args: 
+    pretrained_model:
+      class_path: model.backbone.Encoder
+      init_args:
+        rgnn:
+          class_path: model.backbone.rgnn.RGCN
+          init_args:
+              etypes:
+              - paper-author
+              - paper-reference
+              - author-paper
+              - reference-paper
+              ntypes: ["paper", "author", "reference"]
+              in_channels: 512
+              hid_channels: 512
+              num_layers: 2
+              dropout: 0.2
+        project:
+          class_path: model.backbone.Project
+          init_args:
+            in_channels:
+              paper: 6564
+              author: 13329
+              reference: 35890
+            out_channel: 512
+        checkpoint_path: "logs/pretrain/aminer/version_91/last_encoder.ckpt"
+    in_dim: 512
+    out_dim: 4
+data:
+  class_path: dataset.TrainDataModule
+  init_args:
+    data_class: dataset.AminerDataset
+    root: "data"
+    num_train_node: &num_train_node 20
+    # transform:
+    #   class_path: dgl.transforms.Compose
+    #   init_args:
+    #     transforms:
+    #     - class_path: dataset.DatasetSplit
+    #       init_args:
+    #         num_train_per_class: *num_train_node
+    #         val_size: 1000
+optimizer:
+  lr: 0.001
+  weight_decay: 0.0000
