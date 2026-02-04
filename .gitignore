@@ -1,0 +1,24 @@
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# python编译文件
+*.pyc
+*.pyo
+**/__pycache__/
+
+# 编译器设置
+.vscode/
+.pytest_cache/
+
+# 日志文件
+*.log
+results/
+logs/
+checkpoint/
+
+*.dgl
+*.th
+
+data/*/processed

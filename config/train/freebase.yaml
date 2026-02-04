@@ -1,0 +1,70 @@
+# seed_everything: 6
+trainer:
+  max_epochs: 200
+  enable_progress_bar: false
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: "logs/train"         # 日志存放的根目录
+      name: "freebase"  # 子文件夹名称
+  log_every_n_steps: 1
+  enable_checkpointing: false
+  devices: [0]
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.EarlyStopping
+    init_args:
+      monitor: "val_loss"        # 监控指标
+      patience: 20               # 若 10 个 epoch 没有提升则停止
+      mode: "min"                # val_loss 越小越好
+model:
+  class_path: model.algorithm.Classification
+  init_args: 
+    pretrained_model:
+      class_path: model.backbone.Encoder
+      init_args:
+        rgnn:
+          class_path: model.backbone.rgnn.RGCN
+          init_args:
+            etypes:             
+            - movie-actor
+            - movie-director
+            - movie-producer
+            - actor-movie
+            - director-movie
+            - producer-movie
+            ntypes: ["movie", "actor", "director", "producer"]
+            in_channels: 512
+            hid_channels: 512
+            num_layers: 2
+            dropout: 0.1
+        project:
+          class_path: model.backbone.Project
+          init_args:
+            in_channels:
+              movie: 3492
+              actor: 33401
+              director: 2502
+              producer: 4459
+            out_channel: 512
+        checkpoint_path: "logs/pretrain/freebase/version_228/last_encoder.ckpt"
+    in_dim: 512
+    out_dim: 3
+data:
+  class_path: dataset.TrainDataModule
+  init_args:
+    data_class: dataset.FreebaseDataset
+    root: "data"
+    num_train_node: &num_train_node 20
+    # transform:
+      # class_path: dgl.transforms.Compose
+      # init_args:
+      #   transforms:
+      #   - class_path: dataset.DatasetSplit
+      #     init_args:
+      #       num_train_per_class: *num_train_node
+      #       val_size: 1000
+optimizer:
+  lr: 0.015
+  weight_decay: 0.000
+lr_scheduler:
+  gamma: 0.999

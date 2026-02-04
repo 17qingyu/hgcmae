@@ -1,0 +1,57 @@
+seed_everything: 27
+trainer:
+  devices: [0]
+  max_epochs: 100
+  enable_progress_bar: true
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: "logs/train"         # 日志存放的根目录
+      name: "acm"  # 子文件夹名称
+  log_every_n_steps: 1
+  enable_checkpointing: false
+model:
+  class_path: model.algorithm.Classification
+  init_args: 
+    pretrained_model:
+      class_path: model.backbone.Encoder
+      init_args:
+        rgnn:
+          class_path: model.backbone.rgnn.RGCN
+          init_args:
+            etypes:
+            - paper-author
+            - author-paper
+            - paper-subject
+            - subject-paper
+            ntypes: ["paper", "author", "subject"]
+            in_channels: 256
+            hid_channels: 256
+            num_layers: 2
+            dropout: 0.0
+        project:
+          class_path: model.backbone.Project
+          init_args:
+            in_channels:
+              paper: 1902
+              author: 1902
+              subject: 60
+            out_channel: 256
+        checkpoint_path: "logs/pretrain/acm/version_2/last_encoder.ckpt"
+    in_dim: 256
+    out_dim: 3
+data:
+  class_path: dataset.TrainDataModule
+  init_args:
+    data_class: dataset.ACMDataset
+    root: "data"
+    num_train_node: 20
+    transform:
+      class_path: dgl.transforms.Compose
+      init_args:
+        transforms:
+        - class_path: dgl.transforms.RowFeatNormalizer
+        # - class_path: dataset.DatasetSplit
+optimizer:
+  lr: 0.006
+  weight_decay: 0.00001
